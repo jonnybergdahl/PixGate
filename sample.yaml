@@ -2,10 +2,18 @@ esphome:
   name: pixgate-device
   friendly_name: PixGate Device
 
+# File system for widget persistence
 esp32:
   board: esp32-s3-devkitc-1
   framework:
     type: esp-idf
+  partitions:
+    - name: spiffs
+      type: data
+      subtype: spiffs
+      size: 0x10000
+  include_builtin_idf_components:
+    - spiffs
 
 # Enable WiFi
 wifi:
@@ -26,9 +34,6 @@ ota:
 web_server:
   id: my_web_server
   port: 80
-
-# File system for widget persistence
-esp32_spiffs:
 
 # Hardware configuration for Guition JC4827543C
 # SPI for QSPI Display
