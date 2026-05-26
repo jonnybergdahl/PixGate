@@ -3,6 +3,7 @@
 #include "esphome/core/component.h"
 #include "esphome/components/network/util.h"
 #include "esphome/components/api/custom_api_device.h"
+#include "esphome/components/web_server_base/web_server_base.h"
 #include <lvgl.h>
 #include <ArduinoJson.h>
 #include <string>

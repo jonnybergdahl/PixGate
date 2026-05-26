@@ -4,7 +4,7 @@
 #include "esphome/core/helpers.h"
 #include "esphome/core/json_helper.h"
 #include "esphome/components/web_server_base/web_server_base.h"
-#include <LittleFS.h>
+#include <cstdio>
 
 namespace esphome {
 namespace pixgate {
@@ -27,10 +27,6 @@ class TextWidget : public Widget {
 
 void PixGate::setup() {
   ESP_LOGCONFIG(TAG, "Setting up PixGate...");
-
-  if (!LittleFS.begin()) {
-    ESP_LOGE(TAG, "LittleFS mount failed");
-  }
 
   // Create Splash Screen
   this->splash_screen_ = lv_obj_create(lv_scr_act());
@@ -215,10 +211,14 @@ void PixGate::save_widgets() {
     obj["x"] = w->x;
     obj["y"] = w->y;
   }
-  File file = LittleFS.open("/pixgate_widgets.json", "w");
-  if (file) {
-    serializeJson(doc, file);
-    file.close();
+
+  std::string json_data;
+  serializeJson(doc, json_data);
+
+  FILE *file = std::fopen("/littlefs/pixgate_widgets.json", "w");
+  if (file != nullptr) {
+    std::fputs(json_data.c_str(), file);
+    std::fclose(file);
     ESP_LOGI(TAG, "Saved widgets to LittleFS");
   } else {
     ESP_LOGE(TAG, "Failed to open file for writing");
@@ -226,18 +226,25 @@ void PixGate::save_widgets() {
 }
 
 void PixGate::load_widgets() {
-  if (!LittleFS.exists("/pixgate_widgets.json")) {
-    ESP_LOGI(TAG, "No widget config found");
+  FILE *file = std::fopen("/littlefs/pixgate_widgets.json", "r");
+  if (file == nullptr) {
+    ESP_LOGI(TAG, "No widget config found or failed to open");
     return;
   }
-  File file = LittleFS.open("/pixgate_widgets.json", "r");
-  if (!file) {
-    ESP_LOGE(TAG, "Failed to open file for reading");
-    return;
-  }
+
+  std::fseek(file, 0, SEEK_END);
+  long size = std::ftell(file);
+  std::fseek(file, 0, SEEK_SET);
+
+  char *buffer = new char[size + 1];
+  size_t read_size = std::fread(buffer, 1, size, file);
+  buffer[read_size] = '\0';
+  std::fclose(file);
+
   DynamicJsonDocument doc(2048);
-  DeserializationError error = deserializeJson(doc, file);
-  file.close();
+  DeserializationError error = deserializeJson(doc, buffer);
+  delete[] buffer;
+
   if (error) {
     ESP_LOGE(TAG, "JSON parse error: %s", error.c_str());
     return;

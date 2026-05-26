@@ -3,7 +3,7 @@ import esphome.config_validation as cv
 from esphome.components import web_server, display, lvgl, api
 from esphome.const import CONF_ID, CONF_WEB_SERVER_ID, CONF_DISPLAY_ID
 
-AUTO_LOAD = ["web_server", "display", "network", "json", "lvgl", "api"]
+AUTO_LOAD = ["web_server", "display", "network", "json", "lvgl", "api", "littlefs"]
 
 pixgate_ns = cg.esphome_ns.namespace("pixgate")
 PixGate = pixgate_ns.class_("PixGate", cg.Component, cg.CustomAPIDevice)
