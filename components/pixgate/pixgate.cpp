@@ -268,9 +268,7 @@ void PixGate::add_widget(const std::string &type, const std::string &entity_id, 
     w->setup_lvgl(this->grid_);
     lv_obj_set_grid_cell(w->obj, LV_GRID_ALIGN_STRETCH, x, 1, LV_GRID_ALIGN_STRETCH, y, 1);
     this->widgets_.push_back(w);
-    if (this->is_connected()) {
-      this->subscribe_homeassistant_state(&PixGate::on_state_changed, entity_id);
-    }
+    this->subscribe_homeassistant_state(&PixGate::on_state_changed, entity_id);
   }
 }
 
