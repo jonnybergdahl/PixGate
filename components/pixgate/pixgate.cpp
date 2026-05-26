@@ -215,18 +215,18 @@ void PixGate::save_widgets() {
   std::string json_data;
   serializeJson(doc, json_data);
 
-  FILE *file = std::fopen("/littlefs/pixgate_widgets.json", "w");
+  FILE *file = std::fopen("/spiffs/pixgate_widgets.json", "w");
   if (file != nullptr) {
     std::fputs(json_data.c_str(), file);
     std::fclose(file);
-    ESP_LOGI(TAG, "Saved widgets to LittleFS");
+    ESP_LOGI(TAG, "Saved widgets to SPIFFS");
   } else {
     ESP_LOGE(TAG, "Failed to open file for writing");
   }
 }
 
 void PixGate::load_widgets() {
-  FILE *file = std::fopen("/littlefs/pixgate_widgets.json", "r");
+  FILE *file = std::fopen("/spiffs/pixgate_widgets.json", "r");
   if (file == nullptr) {
     ESP_LOGI(TAG, "No widget config found or failed to open");
     return;

@@ -28,7 +28,7 @@ web_server:
   port: 80
 
 # File system for widget persistence
-littlefs:
+esp32_spiffs:
 
 # Hardware configuration for Guition JC4827543C
 # SPI for QSPI Display
