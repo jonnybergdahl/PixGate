@@ -2,7 +2,7 @@
 #
 # This is the ONLY YAML PixGate needs: the ESPHome device definition (display + touch + an
 # lvgl stub + the wifi/api/web_server boilerplate). Everything shown on the panel is then
-# configured at runtime from the web GUI at http://<device-ip>/pixgate — never in YAML
+# configured at runtime from the web GUI at http://<device-ip>/ — never in YAML
 # (DESIGN.md §1, §17).
 #
 # Replace the `substitutions` and the `display:` / `touchscreen:` blocks with the values for
@@ -19,8 +19,9 @@ esphome:
 esp32:
   board: esp32-s3-devkitc-1
   framework:
-    # PixGate's on-device storage (LittleFS) and web GUI use the Arduino framework.
-    type: arduino
+    # ESP-IDF is the supported framework (every board in devices/ uses it). PixGate stores its
+    # dashboard document in NVS, which is available on both frameworks — no special partitioning.
+    type: esp-idf
 
 logger:
 
@@ -42,9 +43,7 @@ captive_portal:
 
 improv_serial:
 
-# Shared web server PixGate mounts its GUI/API onto (auto-loaded, shown here for clarity).
-web_server:
-  version: 3
+# No web_server: dashboard — pixgate auto-loads web_server_base and serves its own GUI at /.
 
 # Pull the PixGate engine straight from GitHub.
 external_components:

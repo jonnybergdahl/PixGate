@@ -47,6 +47,10 @@ class LightWidget : public TileWidget {
       return;
     const bool on = s.state == "on";
     lv_obj_set_style_bg_color(this->root_, on ? this->color_on_ : this->color_off_, 0);
+    // The on-state fill washes out the theme text colour; use the widget border colour so the
+    // labels stay legible.
+    lv_obj_set_style_text_color(this->root_, on ? active_theme().widget_border : active_theme().text,
+                                0);
 
     std::string brightness = s.attr("brightness");
     if (on && !brightness.empty()) {

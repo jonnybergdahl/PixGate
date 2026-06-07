@@ -1,0 +1,125 @@
+# PixGate per-board base — Waveshare ESP32-P4 86 Panel (ESP32-P4, 4" 720x720 MIPI-DSI + GT911).
+#
+# The ESP32-P4 has no radio of its own: WiFi/BLE run on a hosted ESP32-C6 co-processor reached
+# over SDIO (esp32_hosted). The DSI PHY is powered from an internal LDO channel (esp_ldo). Pin
+# map, panel model, and co-processor wiring follow Waveshare's published ESP32-P4-86-Panel design
+# and the espcontrol reference config. Per-board quirks stay here, never in the engine (DESIGN §17).
+#
+# Hardware: ESP32-P4-86-Panel-ETH (the 2RO bottom board adds two relays on GPIO32/GPIO46 — not
+# wired here; PixGate drives entities over the HA API, not local GPIO).
+
+substitutions:
+  name: pixgate-p4-86
+  friendly_name: PixGate ESP32-P4 86
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+
+esp32:
+  variant: esp32p4
+  # Keep OTA app slots inside the first 16MB; some P4-86 bootloaders can't boot OTA images that
+  # cross the 16MB flash boundary.
+  flash_size: 16MB
+  cpu_frequency: 360MHZ
+  # Most retail P4-86 panels ship with engineering-sample silicon.
+  engineering_sample: true
+  framework:
+    type: esp-idf
+    advanced:
+      enable_idf_experimental_features: true
+      execute_from_psram: true
+    sdkconfig_options:
+      # HTTPS/mbedTLS setup needs more main-task stack on P4 than the default.
+      CONFIG_ESP_MAIN_TASK_STACK_SIZE: "8192"
+      # ESP-Hosted can otherwise preallocate a large internal DMA pool before ESPHome starts and
+      # fail with "HS_MP: mempool create failed: no mem"; use dynamic buffers and keep its task
+      # stacks in PSRAM.
+      CONFIG_ESP_HOSTED_USE_MEMPOOL: "n"
+      CONFIG_ESP_HOSTED_DFLT_TASK_FROM_SPIRAM: "y"
+
+psram:
+  speed: 200MHz
+
+logger:
+  # The Waveshare USB-C debug port is exposed through a USB-UART bridge on UART0.
+  hardware_uart: UART0
+
+api:
+ota:
+  - platform: esphome
+
+wifi:
+  ap:
+    ssid: ${friendly_name} Setup
+captive_portal:
+# No improv_serial: its serial transport (UART2 / usb_serial_jtag) isn't available on the ESP32-P4,
+# so the component fails to compile here. WiFi is provisioned through the captive-portal AP instead.
+
+# No web_server: dashboard — pixgate auto-loads web_server_base and serves its own GUI at /.
+
+# WiFi/BLE co-processor: an ESP32-C6 reached over SDIO (the P4 has no native radio).
+esp32_hosted:
+  variant: esp32c6
+  reset_pin: GPIO54
+  cmd_pin: GPIO19
+  clk_pin: GPIO18
+  d0_pin: GPIO14
+  d1_pin: GPIO15
+  d2_pin: GPIO16
+  d3_pin: GPIO17
+  active_high: true
+  sdio_frequency: 20MHz
+
+# DSI PHY is powered from internal LDO channel 3 (2.5V).
+esp_ldo:
+  - channel: 3
+    id: dsi_phy_enable
+    voltage: 2.5V
+    adjustable: true
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+    components: [pixgate]
+
+# --- Hardware: 4" 720x720 MIPI-DSI panel ---------------------------------------------------
+display:
+  - platform: mipi_dsi
+    model: WAVESHARE-P4-86-PANEL
+    id: main_display
+    auto_clear_enabled: false
+    update_interval: never
+
+# Backlight on GPIO26 (inverted PWM; panel tops out below full brightness).
+output:
+  - platform: ledc
+    pin: GPIO26
+    frequency: 1000Hz
+    id: backlight_output
+    inverted: true
+    max_power: 0.8
+light:
+  - platform: monochromatic
+    output: backlight_output
+    name: Backlight
+    restore_mode: ALWAYS_ON
+
+i2c:
+  sda: GPIO07
+  scl: GPIO08
+  frequency: 400kHz
+  sda_pullup_enabled: false
+  scl_pullup_enabled: false
+
+# GT911 capacitive touch with a wired reset line on GPIO28.
+touchscreen:
+  - platform: gt911
+    id: main_touch
+    display: main_display
+    reset_pin: GPIO28
+
+lvgl:
+
+pixgate:

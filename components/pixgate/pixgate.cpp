@@ -71,8 +71,14 @@ void PixGate::build_root_() {
     return;
   }
 
-  // Root: full-screen flex column holding the three zones. Transparent so the themed screen
-  // background (apply_display_settings_) shows through; the zones below are transparent too.
+  // Strip anything already on the active screen. When no pages are configured in YAML, the lvgl:
+  // component auto-creates a default "hello world" page (a label plus an animated spinner) on the
+  // active screen; the spinner keeps invalidating its region and causes visible flicker behind
+  // PixGate's transparent zones. Remove it so only our tree drives the screen.
+  lv_obj_clean(screen);
+
+  // Root: full-screen flex column holding the three zones. Transparent — the screen background is
+  // painted with the theme color in apply_display_settings_ and shows through behind the tiles.
   this->root_ = lv_obj_create(screen);
   lv_obj_set_size(this->root_, LV_PCT(100), LV_PCT(100));
   lv_obj_center(this->root_);
@@ -82,12 +88,18 @@ void PixGate::build_root_() {
   lv_obj_set_flex_flow(this->root_, LV_FLEX_FLOW_COLUMN);
   lv_obj_clear_flag(this->root_, LV_OBJ_FLAG_SCROLLABLE);
 
-  // Header: fixed height, row of system widgets.
+  // Header: fixed height, row of system widgets. Filled with the widget background color and
+  // separated from the main window by a bottom border in the widget frame color.
+  const Theme &th = active_theme();
   this->header_ = lv_obj_create(this->root_);
   lv_obj_set_size(this->header_, LV_PCT(100), 36);
   lv_obj_set_style_pad_all(this->header_, 4, 0);
-  lv_obj_set_style_border_width(this->header_, 0, 0);
-  lv_obj_set_style_bg_opa(this->header_, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_radius(this->header_, 0, 0);
+  lv_obj_set_style_bg_color(this->header_, th.widget_bg, 0);
+  lv_obj_set_style_bg_opa(this->header_, LV_OPA_COVER, 0);
+  lv_obj_set_style_border_color(this->header_, th.widget_border, 0);
+  lv_obj_set_style_border_width(this->header_, 1, 0);
+  lv_obj_set_style_border_side(this->header_, LV_BORDER_SIDE_BOTTOM, 0);
   lv_obj_set_flex_flow(this->header_, LV_FLEX_FLOW_ROW);
   lv_obj_set_flex_align(this->header_, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER,
                         LV_FLEX_ALIGN_CENTER);
