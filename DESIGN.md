@@ -357,10 +357,11 @@ Notes:
 - **JSON API** (device side), roughly:
   - `GET /api/registry` → available widget types, their schemas, supported domains.
   - `GET /api/config` → current dashboard JSON.
-  - `PUT /api/config` → replace dashboard JSON (validate, persist atomically, trigger rebuild).
+  - `POST /api/config` → replace dashboard JSON (validate, persist atomically, trigger rebuild).
+    (POST, not PUT: ESPHome's ESP-IDF web server only registers GET/POST/OPTIONS handlers.)
   - `GET /api/icons` → available icon names.
   - `GET /api/device` → board geometry, version, etc.
-- **Live apply:** on `PUT /api/config`, persist then rebuild affected zones so the change is
+- **Live apply:** on `POST /api/config`, persist then rebuild affected zones so the change is
   visible on the panel immediately.
 
 ### The entity-picker problem (decide deliberately)

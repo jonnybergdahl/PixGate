@@ -42,8 +42,10 @@ export const getConfig = () => getJson('/api/config');
 export const getIcons = () => getJson('/api/icons').catch(() => []);
 
 export async function putConfig(config) {
+  // POST, not PUT: ESPHome's ESP-IDF web server only registers GET/POST/OPTIONS handlers,
+  // so a PUT is rejected with 405 before reaching the device's handler.
   const res = await fetch(`${base}/api/config`, {
-    method: 'PUT',
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(config),
   });

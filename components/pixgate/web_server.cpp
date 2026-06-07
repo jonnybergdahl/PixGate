@@ -1,5 +1,7 @@
 #include "web_server.h"
 
+#include <algorithm>
+
 #include "esphome/core/log.h"
 
 namespace esphome {
@@ -51,8 +53,8 @@ void PixGateWeb::handleRequest(AsyncWebServerRequest *request) {
     return;
   }
   if (url == "/api/config") {
-    if (request->method() == HTTP_PUT) {
-      this->handle_put_config_(request);
+    if (request->method() == HTTP_POST) {
+      this->handle_post_config_(request);
     } else {
       this->handle_get_config_(request);
     }
@@ -71,18 +73,6 @@ void PixGateWeb::handleRequest(AsyncWebServerRequest *request) {
     return;
   }
   request->send(404, "text/plain", "Not found");
-}
-
-void PixGateWeb::handleBody(AsyncWebServerRequest *request, uint8_t *data, size_t len,
-                            size_t index, size_t total) {
-  char buf[AsyncWebServerRequest::URL_BUF_SIZE];
-  const std::string url(request->url_to(buf));
-  if (url != "/api/config" || request->method() != HTTP_PUT)
-    return;
-  if (index == 0)
-    this->body_buffer_.clear();
-  this->body_buffer_.append(reinterpret_cast<const char *>(data), len);
-  // handleRequest() runs after the body is fully received and consumes body_buffer_.
 }
 
 void PixGateWeb::handle_spa_(AsyncWebServerRequest *request) {
@@ -104,17 +94,38 @@ void PixGateWeb::handle_get_config_(AsyncWebServerRequest *request) {
   request->send(200, "application/json", this->pixgate_->get_config_json().c_str());
 }
 
-void PixGateWeb::handle_put_config_(AsyncWebServerRequest *request) {
+void PixGateWeb::handle_post_config_(AsyncWebServerRequest *request) {
   if (this->pixgate_ == nullptr) {
     request->send(503, "text/plain", "PixGate not ready");
     return;
   }
-  if (this->pixgate_->apply_config_json(this->body_buffer_)) {
+
+  // ESPHome's ESP-IDF web server never calls handleBody and doesn't read the body for a JSON
+  // POST, so pull it straight off the underlying httpd request here. The implicit
+  // AsyncWebServerRequest -> httpd_req_t* conversion gives us the raw request.
+  httpd_req_t *req = *request;
+  const size_t total = req->content_len;
+  std::string body;
+  body.reserve(total);
+  char buf[512];
+  size_t received = 0;
+  while (received < total) {
+    const size_t want = std::min(sizeof(buf), total - received);
+    const int ret = httpd_req_recv(req, buf, want);
+    if (ret <= 0) {
+      ESP_LOGW(TAG, "Failed to read config body (%d) after %zu/%zu bytes", ret, received, total);
+      request->send(400, "application/json", "{\"ok\":false,\"error\":\"truncated body\"}");
+      return;
+    }
+    body.append(buf, ret);
+    received += ret;
+  }
+
+  if (this->pixgate_->apply_config_json(body)) {
     request->send(200, "application/json", "{\"ok\":true}");
   } else {
     request->send(400, "application/json", "{\"ok\":false,\"error\":\"invalid config\"}");
   }
-  this->body_buffer_.clear();
 }
 
 void PixGateWeb::handle_registry_(AsyncWebServerRequest *request) {

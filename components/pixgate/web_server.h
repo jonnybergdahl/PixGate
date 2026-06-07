@@ -5,7 +5,10 @@
 // Served from the device through ESPHome's web_server_base (shared AsyncWebServer). Exposes:
 //   GET  /api/registry  -> available widget types, schemas, supported domains
 //   GET  /api/config    -> current dashboard JSON
-//   PUT  /api/config    -> replace dashboard JSON (validate, persist, rebuild)
+//   POST /api/config    -> replace dashboard JSON (validate, persist, rebuild)
+//
+// ESPHome's ESP-IDF web server only registers GET/POST/OPTIONS (no PUT) and never calls
+// handleBody, so config writes use POST and read the request body directly via httpd_req_recv.
 //   GET  /api/device    -> board geometry, version
 //   GET  /api/icons     -> available icon names
 //   GET  /             -> the configuration SPA (device root)
@@ -35,13 +38,11 @@ class PixGateWeb : public Component, public AsyncWebHandler {
   // --- AsyncWebHandler ------------------------------------------------------------------
   bool canHandle(AsyncWebServerRequest *request) const override;
   void handleRequest(AsyncWebServerRequest *request) override;
-  void handleBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index,
-                  size_t total) override;
   bool isRequestHandlerTrivial() const override { return false; }
 
  protected:
   void handle_get_config_(AsyncWebServerRequest *request);
-  void handle_put_config_(AsyncWebServerRequest *request);
+  void handle_post_config_(AsyncWebServerRequest *request);
   void handle_registry_(AsyncWebServerRequest *request);
   void handle_device_(AsyncWebServerRequest *request);
   void handle_icons_(AsyncWebServerRequest *request);
@@ -52,9 +53,6 @@ class PixGateWeb : public Component, public AsyncWebHandler {
 
   // Base URL (no trailing slash) the shell page loads the Svelte GUI bundle from.
   std::string spa_base_url_;
-
-  // Accumulates a PUT body across chunks before applying it.
-  std::string body_buffer_;
 };
 
 }  // namespace pixgate
