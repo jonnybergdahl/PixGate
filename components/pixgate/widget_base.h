@@ -37,6 +37,28 @@ inline void style_tile(lv_obj_t *tile) {
   lv_obj_set_style_text_color(tile, t.text, 0);
 }
 
+// Restyle an already-built widget root into a compact badge: a fully-rounded pill that hugs its
+// content, lays its children out in a centered row, and uses the theme's widget colors. Applied
+// by the engine to widgets placed in the badge row (DESIGN.md §5).
+inline void style_as_badge(lv_obj_t *obj) {
+  const Theme &t = active_theme();
+  lv_obj_set_size(obj, LV_SIZE_CONTENT, 34);
+  lv_obj_set_style_radius(obj, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_pad_top(obj, 4, 0);
+  lv_obj_set_style_pad_bottom(obj, 4, 0);
+  lv_obj_set_style_pad_left(obj, 14, 0);
+  lv_obj_set_style_pad_right(obj, 14, 0);
+  lv_obj_set_style_pad_column(obj, 8, 0);  // gap between icon and value
+  lv_obj_set_style_bg_color(obj, t.widget_bg, 0);
+  lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, 0);
+  lv_obj_set_style_border_color(obj, t.widget_border, 0);
+  lv_obj_set_style_border_width(obj, 1, 0);
+  lv_obj_set_style_text_color(obj, t.text, 0);
+  lv_obj_set_flex_flow(obj, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(obj, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+}
+
 // Create a standard square-ish tile container under `parent`. Tiles are the building block
 // for simple widgets; complex widgets open a full-screen detail page on tap (§10).
 inline lv_obj_t *make_tile(lv_obj_t *parent) {

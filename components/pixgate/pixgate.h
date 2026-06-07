@@ -89,9 +89,10 @@ class PixGate : public Component
   // `display_obj` is a `JsonObjectConst *` (may be null/empty → defaults light, 0°).
   void apply_display_settings_(const void *display_obj);
 
-  // Build the widgets listed in a zone's "widgets" JSON array into `parent`.
+  // Build the widgets listed in a zone's "widgets" JSON array into `parent`. When `badge` is
+  // set, each built widget root is restyled into a compact pill (badge row).
   void build_zone_widgets_(lv_obj_t *parent, const void *widgets_array, bool is_grid,
-                           GridLayout *grid);
+                           GridLayout *grid, bool badge = false);
 
   // Attach a freshly built widget to the binding service for its entity (seeds it too).
   void attach_widget_(Widget *w);

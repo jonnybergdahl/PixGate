@@ -7,6 +7,7 @@
 #include "esphome/components/lvgl/lvgl_esphome.h"
 
 #include "theme.h"
+#include "widget_base.h"
 
 // ArduinoJson (v7) is pulled in via widget.h -> json component; available on both frameworks.
 
@@ -148,7 +149,7 @@ void PixGate::attach_widget_(Widget *w) {
 }
 
 void PixGate::build_zone_widgets_(lv_obj_t *parent, const void *widgets_array, bool is_grid,
-                                  GridLayout *grid) {
+                                  GridLayout *grid, bool badge) {
   const JsonArrayConst &arr = *static_cast<const JsonArrayConst *>(widgets_array);
   for (JsonObjectConst entry : arr) {
     const char *type = entry["type"] | "";
@@ -168,6 +169,13 @@ void PixGate::build_zone_widgets_(lv_obj_t *parent, const void *widgets_array, b
     JsonObjectConst cfg = entry["cfg"].as<JsonObjectConst>();
     raw->set_entity_id(cfg["entity_id"] | "");
     raw->build(parent, cfg);
+
+    // Badge row: restyle the widget's root into a compact pill (overrides the tile look).
+    if (badge) {
+      lv_obj_t *child = lv_obj_get_child(parent, lv_obj_get_child_cnt(parent) - 1);
+      if (child != nullptr)
+        style_as_badge(child);
+    }
 
     // Position entity widgets in the grid; system widgets just flow in their zone.
     if (is_grid && grid != nullptr) {
@@ -277,10 +285,10 @@ void PixGate::rebuild_() {
     this->build_zone_widgets_(this->header_, &arr, false, nullptr);
   }
 
-  // Badge row system widgets.
+  // Badge row system widgets (rendered as compact pills).
   if (doc["badges"]["widgets"].is<JsonArrayConst>()) {
     JsonArrayConst arr = doc["badges"]["widgets"].as<JsonArrayConst>();
-    this->build_zone_widgets_(this->badges_, &arr, false, nullptr);
+    this->build_zone_widgets_(this->badges_, &arr, false, nullptr, true);
   }
 
   // Main window: render the first page (multi-page nav can land later; schema supports it).
