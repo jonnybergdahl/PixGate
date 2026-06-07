@@ -1,7 +1,10 @@
 #include "pixgate.h"
 
+#include <cstring>
+
 #include "esphome/core/log.h"
 #include "esphome/core/application.h"
+#include "esphome/components/lvgl/lvgl_esphome.h"
 
 // ArduinoJson (v7) is pulled in via widget.h -> json component; available on both frameworks.
 
@@ -20,9 +23,30 @@ void PixGate::setup() {
   ESP_LOGCONFIG(TAG, "Setting up PixGate...");
   this->storage_.begin();
   this->config_json_ = this->storage_.load();
-  this->build_root_();
   this->rebuild_();
+#ifdef USE_OTA_STATE_LISTENER
+  ota::get_global_ota_callback()->add_global_state_listener(this);
+#endif
 }
+
+#ifdef USE_OTA_STATE_LISTENER
+void PixGate::on_ota_global_state(ota::OTAState state, float progress, uint8_t error,
+                                  ota::OTAComponent *component) {
+  if (this->lvgl_ == nullptr)
+    return;
+  switch (state) {
+    case ota::OTA_STARTED:
+      this->lvgl_->set_paused(true, false);
+      break;
+    case ota::OTA_ERROR:
+    case ota::OTA_ABORT:
+      this->lvgl_->set_paused(false, false);
+      break;
+    default:
+      break;
+  }
+}
+#endif
 
 void PixGate::loop() {
   if (this->needs_rebuild_) {
@@ -153,9 +177,46 @@ void PixGate::build_zone_widgets_(lv_obj_t *parent, const void *widgets_array, b
   }
 }
 
-void PixGate::rebuild_() {
-  if (this->root_ == nullptr)
+void PixGate::apply_display_settings_(const void *display_obj) {
+  lv_display_t *disp = lv_display_get_default();
+  if (disp == nullptr)
     return;
+  const JsonObjectConst &d = *static_cast<const JsonObjectConst *>(display_obj);
+
+  // Theme: re-init the default theme with the dark flag toggled. Must run before the widget
+  // tree is rebuilt so freshly created objects inherit the new theme.
+  const bool dark = std::strcmp(d["theme"] | "light", "dark") == 0;
+  lv_theme_t *theme =
+      lv_theme_default_init(disp, lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_RED),
+                            dark, LV_FONT_DEFAULT);
+  lv_display_set_theme(disp, theme);
+
+  // Orientation: LVGL swaps hor/ver resolution automatically. Note RGB (DPI) panels generally
+  // can't rotate at runtime without an extra full framebuffer (DESIGN.md §15) — on those boards
+  // this is effectively limited to 0/180. SPI panels rotate cleanly.
+  lv_display_rotation_t rot;
+  switch (d["orientation"] | 0) {
+    case 90:
+      rot = LV_DISPLAY_ROTATION_90;
+      break;
+    case 180:
+      rot = LV_DISPLAY_ROTATION_180;
+      break;
+    case 270:
+      rot = LV_DISPLAY_ROTATION_270;
+      break;
+    default:
+      rot = LV_DISPLAY_ROTATION_0;
+      break;
+  }
+  lv_display_set_rotation(disp, rot);
+}
+
+void PixGate::rebuild_() {
+  if (lv_scr_act() == nullptr) {
+    ESP_LOGE(TAG, "No active LVGL screen; is the lvgl: component configured?");
+    return;
+  }
 
   this->teardown_();
 
@@ -165,6 +226,18 @@ void PixGate::rebuild_() {
     ESP_LOGE(TAG, "Cannot rebuild: config parse error (%s)", err.c_str());
     return;
   }
+
+  // Apply theme + rotation, then rebuild the root tree from scratch so every object picks up the
+  // current theme (LVGL only applies a theme to objects at creation time).
+  JsonObjectConst display = doc["display"].as<JsonObjectConst>();
+  this->apply_display_settings_(&display);
+  if (this->root_ != nullptr) {
+    lv_obj_del(this->root_);
+    this->root_ = this->header_ = this->badges_ = this->main_ = nullptr;
+  }
+  this->build_root_();
+  if (this->root_ == nullptr)
+    return;
 
   // Header system widgets.
   if (doc["header"]["widgets"].is<JsonArrayConst>()) {

@@ -14,6 +14,11 @@
 #include "lvgl.h"
 
 #include "esphome/core/component.h"
+#include "esphome/core/defines.h"
+
+#ifdef USE_OTA_STATE_LISTENER
+#include "esphome/components/ota/ota_backend.h"
+#endif
 
 #include "binding.h"
 #include "layout.h"
@@ -22,12 +27,22 @@
 #include "widget.h"
 
 namespace esphome {
+namespace lvgl {
+class LvglComponent;
+}  // namespace lvgl
+
 namespace pixgate {
 
-class PixGate : public Component {
+class PixGate : public Component
+#ifdef USE_OTA_STATE_LISTENER
+    ,
+                public ota::OTAGlobalStateListener
+#endif
+{
  public:
   // --- ESPHome configuration setters (called from codegen in __init__.py) --------------
   void set_config_path(const std::string &path) { this->storage_.set_path(path); }
+  void set_lvgl(lvgl::LvglComponent *lvgl) { this->lvgl_ = lvgl; }
 
   // --- Component lifecycle --------------------------------------------------------------
   void setup() override;
@@ -52,6 +67,14 @@ class PixGate : public Component {
 
   BindingService &binding() { return this->binding_; }
 
+#ifdef USE_OTA_STATE_LISTENER
+  // Pause LVGL while an OTA runs (its render task + panel DMA otherwise contend with flash
+  // writes and can stall the update); resume on error/abort. A successful update reboots, so
+  // no resume is needed on completion.
+  void on_ota_global_state(ota::OTAState state, float progress, uint8_t error,
+                           ota::OTAComponent *component) override;
+#endif
+
  protected:
   // Build the three root zones (header / badges / main) on the active LVGL screen.
   void build_root_();
@@ -62,6 +85,10 @@ class PixGate : public Component {
   // (Re)build the whole widget tree from `config_json_`.
   void rebuild_();
 
+  // Apply the config's `display` object (light/dark theme + rotation) to the active LVGL display.
+  // `display_obj` is a `JsonObjectConst *` (may be null/empty → defaults light, 0°).
+  void apply_display_settings_(const void *display_obj);
+
   // Build the widgets listed in a zone's "widgets" JSON array into `parent`.
   void build_zone_widgets_(lv_obj_t *parent, const void *widgets_array, bool is_grid,
                            GridLayout *grid);
@@ -71,6 +98,7 @@ class PixGate : public Component {
 
   ConfigStorage storage_;
   BindingService binding_;
+  lvgl::LvglComponent *lvgl_{nullptr};
 
   std::string config_json_;
   bool needs_rebuild_{false};

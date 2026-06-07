@@ -12,6 +12,18 @@
   color: var(--text);
 }
 
+:root[data-theme="dark"] {
+  --bg: #161a20;
+  --panel: #1e242c;
+  --border: #353c46;
+  --text: #e7eaee;
+  --muted: #97a0ad;
+  --accent: #4d86f7;
+  --accent-text: #ffffff;
+  --danger: #e2655f;
+  --ok: #43b977;
+}
+
 * { box-sizing: border-box; }
 
 body {

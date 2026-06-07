@@ -8,6 +8,8 @@ device definition (display + touch + lvgl stub + wifi/api/web_server). See DESIG
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import web_server_base
+from esphome.components.lvgl.lvcode import LvglComponent
+from esphome.components.ota import request_ota_state_listeners
 from esphome.const import CONF_ID
 
 CODEOWNERS = ["@jonnybergdahl"]
@@ -20,6 +22,7 @@ AUTO_LOAD = ["web_server_base", "json"]
 CONF_CONFIG_PATH = "config_path"
 CONF_WEB_ID = "web_id"
 CONF_WEB_SERVER_BASE_ID = "web_server_base_id"
+CONF_LVGL_ID = "lvgl_id"
 CONF_SPA_BASE_URL = "spa_base_url"
 
 # Where the device shell page loads the Svelte GUI bundle from. The shell HTML is served by
@@ -36,6 +39,9 @@ CONFIG_SCHEMA = cv.Schema(
         cv.GenerateID(): cv.declare_id(PixGate),
         cv.GenerateID(CONF_WEB_ID): cv.declare_id(PixGateWeb),
         cv.GenerateID(CONF_WEB_SERVER_BASE_ID): cv.use_id(web_server_base.WebServerBase),
+        # The lvgl host we ride on (DESIGN.md §4). We hold a reference solely to pause/resume
+        # rendering around OTA so LVGL's render task + panel DMA don't fight flash writes.
+        cv.GenerateID(CONF_LVGL_ID): cv.use_id(LvglComponent),
         # On-device path of the versioned dashboard JSON document on LittleFS (DESIGN.md §9).
         cv.Optional(CONF_CONFIG_PATH, default="/pixgate.json"): cv.string,
         # Base URL the device shell page loads the Svelte GUI bundle from (no trailing slash).
@@ -60,6 +66,13 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     cg.add(var.set_config_path(config[CONF_CONFIG_PATH]))
+
+    # Pause LVGL during OTA from the engine, so the device YAML needs no ota: automations.
+    # request_ota_state_listeners() compiles in the OTA state-listener API (only effective when
+    # an ota: platform is configured); the engine registers itself as a listener at runtime.
+    request_ota_state_listeners()
+    lvgl = await cg.get_variable(config[CONF_LVGL_ID])
+    cg.add(var.set_lvgl(lvgl))
 
     # Wire the device-side web GUI to the shared web server and the engine.
     paren = await cg.get_variable(config[CONF_WEB_SERVER_BASE_ID])

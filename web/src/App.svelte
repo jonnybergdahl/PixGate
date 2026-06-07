@@ -1,6 +1,7 @@
 <script>
   import { getDevice, getRegistry, getConfig, getIcons, putConfig, deviceHost } from './lib/api.js';
   import { shouldPromptHa, markHaPrompted } from './lib/ha.js';
+  import { resolveUiTheme, saveUiTheme } from './lib/theme.js';
   import { newEntry, deepClone } from './lib/model.js';
   import Zone from './lib/components/Zone.svelte';
   import WidgetEditor from './lib/components/WidgetEditor.svelte';
@@ -59,6 +60,7 @@
       c.header ??= { widgets: [] };
       c.badges ??= { widgets: [] };
       c.pages ??= [{ name: 'Home', columns: 4, widgets: [] }];
+      c.display ??= { theme: 'light', orientation: 0 };
       config = c;
     } catch (e) {
       loadError = e.message;
@@ -116,6 +118,17 @@
     } finally {
       saving = false;
     }
+  }
+
+  // Editor theme is browser-only and independent of the device's display.theme. Defaults to the
+  // OS preference until the user picks one in Settings.
+  let uiTheme = $state(resolveUiTheme());
+  $effect(() => {
+    document.documentElement.dataset.theme = uiTheme;
+  });
+  function setUiTheme(theme) {
+    uiTheme = theme;
+    saveUiTheme(theme);
   }
 
   loadAll();
@@ -196,5 +209,12 @@
 {/if}
 
 {#if showSettings}
-  <Settings firstRun={settingsFirstRun} onclose={closeSettings} />
+  <Settings
+    firstRun={settingsFirstRun}
+    {config}
+    {uiTheme}
+    onUiTheme={setUiTheme}
+    onApplyDisplay={() => putConfig(config)}
+    onclose={closeSettings}
+  />
 {/if}

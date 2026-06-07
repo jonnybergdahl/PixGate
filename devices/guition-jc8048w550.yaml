@@ -1,8 +1,8 @@
 # PixGate per-board base — Guition JC8048W550 (ESP32-S3, 800x480 RGB panel + GT911 touch).
 #
-# RGB (parallel) panels are driven via the rpi_dpi_rgb platform. Pin map + panel timing
-# follow the openHASP board setup (guition-jc8048w550n.ini). Per-board quirks stay here,
-# never in the engine (DESIGN.md §17).
+# RGB (parallel) panels are driven via the mipi_rgb platform (model: RPI — a pure DPI panel
+# with no SPI control bus or init sequence). Pin map + panel timing follow the openHASP board
+# setup (guition-jc8048w550n.ini). Per-board quirks stay here, never in the engine (DESIGN.md §17).
 # Ref: https://github.com/HASwitchPlate/openHASP/blob/master/user_setups/esp32s3/guition-jc8048w550n.ini
 
 substitutions:
@@ -47,7 +47,8 @@ external_components:
 
 # --- Hardware: 800x480 RGB (DPI) panel ----------------------------------------------------
 display:
-  - platform: rpi_dpi_rgb
+  - platform: mipi_rgb
+    model: RPI
     id: main_display
     dimensions:
       width: 800
@@ -57,6 +58,9 @@ display:
     vsync_pin: GPIO41
     pclk_pin: GPIO42
     # 16-bit RGB565 data pins (per openHASP TFT_Rx/Gx/Bx).
+    # Color-order note: the old rpi_dpi_rgb platform defaulted to BGR and ordered these arrays
+    # differently than mipi_rgb does. If red/blue come out swapped on the panel, either set
+    # `color_order: BGR` here or swap the `red:` and `blue:` arrays. Verify on-device.
     data_pins:
       red: [GPIO45, GPIO48, GPIO47, GPIO21, GPIO14]
       green: [GPIO5, GPIO6, GPIO7, GPIO15, GPIO16, GPIO4]

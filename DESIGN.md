@@ -95,6 +95,13 @@ The minimal device YAML therefore contains: board/framework, `display:`, `touchs
 minimal `lvgl:` stub, the `external_components:` pointing at this repo, and the
 wifi/api/ota/provisioning boilerplate (shipped as a per-board base config — see §11/§12).
 
+**One narrow coupling to the `lvgl:` host:** the engine holds a pointer to the `LvglComponent`
+solely to pause/resume rendering around OTA (its render task + panel DMA otherwise contend
+with flash writes and can stall the update). This keeps the device YAML free of `ota:`
+automations — the engine registers itself as an `ota::OTAGlobalStateListener` and pauses on
+`OTA_STARTED`, resuming on error/abort (a successful update reboots). This is a reference to
+the lvgl *host* we ride on, not to the display/touch drivers, so constraint §17.2 still holds.
+
 ---
 
 ## 5. Screen structure
@@ -282,6 +289,7 @@ right and tested early (a hardcoded subscribe + a hardcoded `light.toggle` is a 
 ```json
 {
   "schema_version": 1,
+  "display": { "theme": "dark", "orientation": 0 },
   "header": {
     "widgets": [
       { "type": "clock", "cfg": {} },
@@ -320,6 +328,17 @@ right and tested early (a hardcoded subscribe + a hardcoded `light.toggle` is a 
 
 `cfg` is the per-widget slice handed to `Widget::build()` and validated against the widget's
 `ConfigSchema`.
+
+The optional top-level **`display`** object holds device-wide presentation settings the user
+controls from the web GUI (the ⚙ Settings dialog), distinct from per-board hardware quirks:
+
+- **`theme`** — `"light"` or `"dark"`. Re-inits the LVGL default theme with the dark flag. This
+  themes the on-device dashboard only; the web editor has its own independent, browser-only theme
+  (defaulting to the OS preference) and does not follow this setting.
+- **`orientation`** — `0 | 90 | 180 | 270` degrees. Applied via `lv_display_set_rotation`.
+  See §15 for the RGB-panel caveat.
+
+Both are applied by the engine on every config apply, before the widget tree is rebuilt.
 
 ---
 
@@ -478,8 +497,12 @@ espdash:
 - **MDI font subset** size vs flash budget — bundle a curated subset, not the whole set.
 - **Multiple pages** navigation UX (swipe + indicator) — schema supports it from v1; rendering
   can land slightly later.
-- **Per-board quirks** (rotation, color order, touch calibration) — keep these entirely in the
-  `boards/` YAML, never in the engine.
+- **Per-board quirks** (the panel's native rotation/color order, touch calibration) — keep these
+  entirely in the `boards/` YAML, never in the engine. This is the *hardware* mounting baseline.
+  The user-facing **`display.orientation`** preference (§9) layers on top at runtime via
+  `lv_display_set_rotation`. Caveat: RGB (DPI) panels generally cannot rotate at runtime without
+  an extra full framebuffer, so on those boards orientation is effectively limited to 0°/180°;
+  SPI panels rotate freely. The setting compiles and applies on every board regardless.
 
 ---
 
