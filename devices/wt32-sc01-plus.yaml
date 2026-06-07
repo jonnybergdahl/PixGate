@@ -32,8 +32,7 @@ wifi:
 captive_portal:
 improv_serial:
 
-web_server:
-  version: 3
+# No web_server: dashboard — pixgate auto-loads web_server_base and serves its own GUI at /.
 
 external_components:
   - source:

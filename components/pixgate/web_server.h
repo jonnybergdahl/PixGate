@@ -8,7 +8,7 @@
 //   PUT  /api/config    -> replace dashboard JSON (validate, persist, rebuild)
 //   GET  /api/device    -> board geometry, version
 //   GET  /api/icons     -> available icon names
-//   GET  /pixgate       -> the configuration SPA
+//   GET  /             -> the configuration SPA (device root)
 //
 // The handler keeps no HA secrets: entity discovery happens entirely in the browser (§11).
 

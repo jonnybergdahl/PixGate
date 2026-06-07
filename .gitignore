@@ -75,3 +75,5 @@ Testing/
 # Python
 __pycache__/
 *.pyc
+
+secrets.yaml

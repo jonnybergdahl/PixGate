@@ -7,11 +7,11 @@ namespace pixgate {
 
 static const char *const TAG = "pixgate.web";
 
-// The widget-setup GUI is a Vite+Svelte SPA hosted on GitHub Pages (see web/). The device only
-// serves this tiny shell: it mounts the SPA into <div id="app"> and pulls the JS/CSS bundle
-// from the Pages URL. Because the shell itself is served by the device, the SPA's /api/* calls
-// stay same-origin (no CORS needed). The {{SPA_BASE}} token is substituted at request time with
-// the configured spa_base_url. If the bundle can't load, the noscript/fallback text shows.
+// The widget-setup GUI is a Vite+Svelte SPA hosted on GitHub Pages (see web/). The device serves
+// this tiny shell at the root URL: it mounts the SPA into <div id="app"> and pulls the JS/CSS
+// bundle from the Pages URL. Because the shell itself is served by the device, the SPA's /api/*
+// calls stay same-origin (no CORS needed). The {{SPA_BASE}} token is substituted at request time
+// with the configured spa_base_url. If the bundle can't load, the noscript/fallback text shows.
 static const char PIXGATE_SHELL[] = R"HTML(<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -31,7 +31,7 @@ void PixGateWeb::setup() {
   }
   this->base_->init();
   this->base_->add_handler(this);
-  ESP_LOGI(TAG, "PixGate web GUI at /pixgate");
+  ESP_LOGI(TAG, "PixGate web GUI at /");
 }
 
 void PixGateWeb::dump_config() { ESP_LOGCONFIG(TAG, "PixGate Web GUI"); }
@@ -39,14 +39,14 @@ void PixGateWeb::dump_config() { ESP_LOGCONFIG(TAG, "PixGate Web GUI"); }
 bool PixGateWeb::canHandle(AsyncWebServerRequest *request) const {
   char buf[AsyncWebServerRequest::URL_BUF_SIZE];
   const std::string url(request->url_to(buf));
-  return url == "/pixgate" || url.rfind("/api/", 0) == 0;
+  return url == "/" || url.rfind("/api/", 0) == 0;
 }
 
 void PixGateWeb::handleRequest(AsyncWebServerRequest *request) {
   char buf[AsyncWebServerRequest::URL_BUF_SIZE];
   const std::string url(request->url_to(buf));
 
-  if (url == "/pixgate") {
+  if (url == "/") {
     this->handle_spa_(request);
     return;
   }
