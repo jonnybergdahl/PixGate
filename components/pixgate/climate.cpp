@@ -40,7 +40,7 @@ class ClimateWidget : public TileWidget {
     lv_obj_set_size(this->root_, LV_PCT(100), 150);
     lv_obj_set_style_radius(this->root_, 10, 0);
     lv_obj_set_style_pad_all(this->root_, 8, 0);
-    lv_obj_set_style_bg_color(this->root_, lv_color_hex(0x37474F), 0);
+    style_tile(this->root_);  // theme fill/border/text (this card doesn't use make_tile)
     lv_obj_set_flex_flow(this->root_, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(this->root_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);

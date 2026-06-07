@@ -28,8 +28,7 @@ class SensorWidget : public TileWidget {
 
   void build(lv_obj_t *parent, JsonObjectConst cfg) override {
     this->root_ = make_tile(parent);
-    lv_obj_set_style_bg_color(this->root_, lv_color_hex(0x263238), 0);
-    // Read-only: no click handler.
+    // Read-only: no click handler. Tile colors come from the active theme (make_tile).
 
     this->label_ = lv_label_create(this->root_);
     lv_label_set_text(this->label_, (cfg["label"] | "Sensor"));

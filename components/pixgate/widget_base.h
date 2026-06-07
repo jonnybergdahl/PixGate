@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <string>
 
+#include "theme.h"
 #include "widget.h"
 
 namespace esphome {
@@ -25,6 +26,17 @@ inline lv_color_t parse_color(const std::string &hex, lv_color_t fallback) {
   return lv_color_hex(static_cast<uint32_t>(v));
 }
 
+// Apply the active palette (fill, border, text) to a tile-like container so every widget shares
+// one look. Widgets that show state through color (switch, light) override bg_color afterwards.
+inline void style_tile(lv_obj_t *tile) {
+  const Theme &t = active_theme();
+  lv_obj_set_style_bg_color(tile, t.widget_bg, 0);
+  lv_obj_set_style_bg_opa(tile, LV_OPA_COVER, 0);
+  lv_obj_set_style_border_color(tile, t.widget_border, 0);
+  lv_obj_set_style_border_width(tile, 1, 0);
+  lv_obj_set_style_text_color(tile, t.text, 0);
+}
+
 // Create a standard square-ish tile container under `parent`. Tiles are the building block
 // for simple widgets; complex widgets open a full-screen detail page on tap (§10).
 inline lv_obj_t *make_tile(lv_obj_t *parent) {
@@ -32,6 +44,7 @@ inline lv_obj_t *make_tile(lv_obj_t *parent) {
   lv_obj_set_size(tile, LV_PCT(100), 90);
   lv_obj_set_style_radius(tile, 10, 0);
   lv_obj_set_style_pad_all(tile, 8, 0);
+  style_tile(tile);
   lv_obj_set_flex_flow(tile, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_flex_align(tile, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
   lv_obj_clear_flag(tile, LV_OBJ_FLAG_SCROLLABLE);

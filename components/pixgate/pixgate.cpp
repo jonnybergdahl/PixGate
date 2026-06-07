@@ -6,6 +6,8 @@
 #include "esphome/core/application.h"
 #include "esphome/components/lvgl/lvgl_esphome.h"
 
+#include "theme.h"
+
 // ArduinoJson (v7) is pulled in via widget.h -> json component; available on both frameworks.
 
 namespace esphome {
@@ -69,12 +71,14 @@ void PixGate::build_root_() {
     return;
   }
 
-  // Root: full-screen flex column holding the three zones.
+  // Root: full-screen flex column holding the three zones. Transparent so the themed screen
+  // background (apply_display_settings_) shows through; the zones below are transparent too.
   this->root_ = lv_obj_create(screen);
   lv_obj_set_size(this->root_, LV_PCT(100), LV_PCT(100));
   lv_obj_center(this->root_);
   lv_obj_set_style_pad_all(this->root_, 0, 0);
   lv_obj_set_style_border_width(this->root_, 0, 0);
+  lv_obj_set_style_bg_opa(this->root_, LV_OPA_TRANSP, 0);
   lv_obj_set_flex_flow(this->root_, LV_FLEX_FLOW_COLUMN);
   lv_obj_clear_flag(this->root_, LV_OBJ_FLAG_SCROLLABLE);
 
@@ -83,6 +87,7 @@ void PixGate::build_root_() {
   lv_obj_set_size(this->header_, LV_PCT(100), 36);
   lv_obj_set_style_pad_all(this->header_, 4, 0);
   lv_obj_set_style_border_width(this->header_, 0, 0);
+  lv_obj_set_style_bg_opa(this->header_, LV_OPA_TRANSP, 0);
   lv_obj_set_flex_flow(this->header_, LV_FLEX_FLOW_ROW);
   lv_obj_set_flex_align(this->header_, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER,
                         LV_FLEX_ALIGN_CENTER);
@@ -94,6 +99,7 @@ void PixGate::build_root_() {
   lv_obj_set_height(this->badges_, LV_SIZE_CONTENT);
   lv_obj_set_style_pad_all(this->badges_, 2, 0);
   lv_obj_set_style_border_width(this->badges_, 0, 0);
+  lv_obj_set_style_bg_opa(this->badges_, LV_OPA_TRANSP, 0);
   lv_obj_set_flex_flow(this->badges_, LV_FLEX_FLOW_ROW_WRAP);
   lv_obj_clear_flag(this->badges_, LV_OBJ_FLAG_SCROLLABLE);
 
@@ -103,6 +109,7 @@ void PixGate::build_root_() {
   lv_obj_set_flex_grow(this->main_, 1);
   lv_obj_set_style_pad_all(this->main_, 8, 0);
   lv_obj_set_style_border_width(this->main_, 0, 0);
+  lv_obj_set_style_bg_opa(this->main_, LV_OPA_TRANSP, 0);
 }
 
 void PixGate::teardown_() {
@@ -183,13 +190,26 @@ void PixGate::apply_display_settings_(const void *display_obj) {
     return;
   const JsonObjectConst &d = *static_cast<const JsonObjectConst *>(display_obj);
 
-  // Theme: re-init the default theme with the dark flag toggled. Must run before the widget
-  // tree is rebuilt so freshly created objects inherit the new theme.
+  // Theme: select our palette and re-init LVGL's default theme (handles control styling for
+  // sliders/arcs/buttons) with the matching dark flag. Must run before the widget tree is
+  // rebuilt so freshly created tiles read the right palette via style_tile().
   const bool dark = std::strcmp(d["theme"] | "light", "dark") == 0;
+  set_active_theme(dark);
   lv_theme_t *theme =
       lv_theme_default_init(disp, lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_RED),
                             dark, LV_FONT_DEFAULT);
   lv_display_set_theme(disp, theme);
+
+  // Paint the screen with our background + text color. The zone containers are transparent
+  // (build_root_), so this background shows through behind the tiles. Text color is inherited
+  // by labels in the header/badges that aren't inside a tile.
+  const Theme &t = active_theme();
+  lv_obj_t *screen = lv_display_get_screen_active(disp);
+  if (screen != nullptr) {
+    lv_obj_set_style_bg_color(screen, t.bg, 0);
+    lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
+    lv_obj_set_style_text_color(screen, t.text, 0);
+  }
 
   // Orientation: LVGL swaps hor/ver resolution automatically. Note RGB (DPI) panels generally
   // can't rotate at runtime without an extra full framebuffer (DESIGN.md §15) — on those boards
