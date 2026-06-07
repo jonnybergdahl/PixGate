@@ -1,0 +1,95 @@
+# PixGate per-board base — Guition JC8048W550 (ESP32-S3, 800x480 RGB panel + GT911 touch).
+#
+# RGB (parallel) panels are driven via the rpi_dpi_rgb platform. Pin map + panel timing
+# follow the openHASP board setup (guition-jc8048w550n.ini). Per-board quirks stay here,
+# never in the engine (DESIGN.md §17).
+# Ref: https://github.com/HASwitchPlate/openHASP/blob/master/user_setups/esp32s3/guition-jc8048w550n.ini
+
+substitutions:
+  name: pixgate-jc8048w550
+  friendly_name: PixGate JC8048W550
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+logger:
+api:
+ota:
+  - platform: esphome
+
+wifi:
+  ap:
+    ssid: ${friendly_name} Setup
+captive_portal:
+improv_serial:
+
+web_server:
+  version: 3
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+    components: [pixgate]
+
+# --- Hardware: 800x480 RGB (DPI) panel ----------------------------------------------------
+display:
+  - platform: rpi_dpi_rgb
+    id: main_display
+    dimensions:
+      width: 800
+      height: 480
+    de_pin: GPIO40
+    hsync_pin: GPIO39
+    vsync_pin: GPIO41
+    pclk_pin: GPIO42
+    # 16-bit RGB565 data pins (per openHASP TFT_Rx/Gx/Bx).
+    data_pins:
+      red: [GPIO45, GPIO48, GPIO47, GPIO21, GPIO14]
+      green: [GPIO5, GPIO6, GPIO7, GPIO15, GPIO16, GPIO4]
+      blue: [GPIO8, GPIO3, GPIO46, GPIO9, GPIO1]
+    # Panel timing per openHASP (PCLK active-neg, ~16MHz, 8/4/8 porches).
+    pclk_frequency: 16MHz
+    pclk_inverted: true
+    hsync_pulse_width: 4
+    hsync_back_porch: 8
+    hsync_front_porch: 8
+    vsync_pulse_width: 4
+    vsync_back_porch: 8
+    vsync_front_porch: 8
+
+# Backlight on GPIO2 (openHASP TFT_BCKL=2, 100Hz).
+output:
+  - platform: ledc
+    pin: GPIO2
+    frequency: 100Hz
+    id: backlight_output
+light:
+  - platform: monochromatic
+    output: backlight_output
+    name: Backlight
+    restore_mode: ALWAYS_ON
+
+i2c:
+  sda: GPIO19
+  scl: GPIO20
+
+# GT911 touch: openHASP uses RST GPIO38 and no IRQ (TOUCH_IRQ=-1).
+touchscreen:
+  - platform: gt911
+    id: main_touch
+    reset_pin: GPIO38
+
+lvgl:
+
+pixgate:

@@ -1,156 +1,74 @@
-esphome:
-  name: pixgate-device
-  friendly_name: PixGate Device
+# PixGate — generic sample device YAML (library path).
+#
+# This is the ONLY YAML PixGate needs: the ESPHome device definition (display + touch + an
+# lvgl stub + the wifi/api/web_server boilerplate). Everything shown on the panel is then
+# configured at runtime from the web GUI at http://<device-ip>/pixgate — never in YAML
+# (DESIGN.md §1, §17).
+#
+# Replace the `substitutions` and the `display:` / `touchscreen:` blocks with the values for
+# your specific board (see devices/ for ready-made per-device base configs).
 
-# File system for widget persistence
+substitutions:
+  name: pixgate
+  friendly_name: PixGate
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+
 esp32:
   board: esp32-s3-devkitc-1
   framework:
-    type: esp-idf
-  partitions:
-    - name: spiffs
-      type: data
-      subtype: spiffs
-      size: 0x10000
-  include_builtin_idf_components:
-    - spiffs
+    # PixGate's on-device storage (LittleFS) and web GUI use the Arduino framework.
+    type: arduino
 
-# Enable WiFi
-wifi:
-  ssid: "YOUR_WIFI_SSID"
-  password: "YOUR_WIFI_PASSWORD"
-
-# Enable logging
 logger:
 
-# Enable Home Assistant API for status and OTA
+# Native Home Assistant API. PixGate uses this for runtime entity subscriptions and service
+# calls (DESIGN.md §8). Enable "Allow the device to perform Home Assistant actions" in the
+# ESPHome integration so service calls work.
 api:
-  homeassistant_states: true
 
 ota:
   - platform: esphome
 
-# Web server for the configuration UI
+# Provisioning (DESIGN.md §12): join the configured network, otherwise raise an AP so the
+# user can enter credentials, and allow ESP Web Tools to set WiFi during a browser flash.
+wifi:
+  ap:
+    ssid: ${friendly_name} Setup
+
+captive_portal:
+
+improv_serial:
+
+# Shared web server PixGate mounts its GUI/API onto (auto-loaded, shown here for clarity).
 web_server:
-  id: my_web_server
-  port: 80
+  version: 3
 
-# Hardware configuration for Guition JC4827543C
-# SPI for QSPI Display
-spi:
-  - id: quad_spi
-    type: quad
-    clk_pin: 47
-    data_pins: [21, 48, 40, 39]
-
-# I2C for GT911 Touchscreen
-i2c:
-  sda: 8
-  scl: 4
-
-# Backlight control
-output:
-  - platform: ledc
-    pin: 1
-    id: backlight_pwm
-
-light:
-  - platform: monochromatic
-    output: backlight_pwm
-    name: "Display Backlight"
-    id: display_backlight
-    restore_mode: ALWAYS_ON
-
-touchscreen:
-  - platform: gt911
-    id: my_touchscreen
-    display: my_display
-    interrupt_pin: 3
-    reset_pin: 38
-
-display:
-  - platform: qspi_dbi
-    model: CUSTOM
-    id: my_display
-    dimensions:
-      width: 480
-      height: 272
-    data_rate: 20MHz
-    cs_pin:
-      number: 45
-      ignore_strapping_warning: true
-    invert_colors: true
-    rotation: 180
-    update_interval: never
-    auto_clear_enabled: false
-    init_sequence:
-      - [0xff, 0xa5]
-      - [0x36, 0xc0]
-      - [0x3A, 0x01]
-      - [0x41, 0x03]
-      - [0x44, 0x15]
-      - [0x45, 0x15]
-      - [0x7d, 0x03]
-      - [0xc1, 0xbb]
-      - [0xc2, 0x05]
-      - [0xc3, 0x10]
-      - [0xc6, 0x3e]
-      - [0xc7, 0x25]
-      - [0xc8, 0x11]
-      - [0x7a, 0x5f]
-      - [0x6f, 0x44]
-      - [0x78, 0x70]
-      - [0xc9, 0x00]
-      - [0x67, 0x21]
-      - [0x51, 0x0a]
-      - [0x52, 0x76]
-      - [0x53, 0x0a]
-      - [0x54, 0x76]
-      - [0x46, 0x0a]
-      - [0x47, 0x2a]
-      - [0x48, 0x0a]
-      - [0x49, 0x1a]
-      - [0x56, 0x43]
-      - [0x57, 0x42]
-      - [0x58, 0x3c]
-      - [0x59, 0x32]
-      - [0x5a, 0x41]
-      - [0x5b, 0x3C]
-      - [0x5c, 0x05]
-      - [0x5d, 0x24]
-      - [0x5e, 0x12]
-      - [0xad, 0x07]
-      - [0x8e, 0x16]
-      - [0xae, 0x06]
-      - [0x8f, 0x1B]
-      - [0xaf, 0x07]
-      - [0x90, 0x04]
-      - [0xb0, 0x04]
-      - [0x91, 0x0a]
-      - [0xb1, 0x0a]
-      - [0x92, 0x16]
-      - [0xb2, 0x15]
-      - [0xff, 0x00]
-      - [0x11, 0x00]
-      - [0x29, 0x00]
-
-# LVGL configuration
-lvgl:
-  id: my_lvgl
-  displays:
-    - display_id: my_display
-      touchscreen_id: my_touchscreen
-  # LVGL handles the rendering
-  update_interval: never
-
-# PixGate component configuration
+# Pull the PixGate engine straight from GitHub.
 external_components:
   - source:
       type: git
       url: https://github.com/jonnybergdahl/PixGate
+    components: [pixgate]
 
+# --- Board hardware (replace for your panel) ----------------------------------------------
+# Example display + touch. PixGate never references these directly; it rides whatever LVGL
+# display the lvgl: component sets up (DESIGN.md §4).
+display:
+  - platform: ili9xxx
+    id: main_display
+    model: st7796
+    # ...pins, dimensions, rotation, color order live here, per board...
+
+touchscreen:
+  - platform: ft63x6
+    id: main_touch
+    # ...i2c bus / interrupt pin per board...
+
+# Minimal lvgl: stub — PixGate builds its widget tree on top of this at runtime.
+lvgl:
+
+# The engine itself. No dashboard configuration here by design.
 pixgate:
-  display_id: my_display
-  web_server_id: my_web_server
-  rows: 4
-  columns: 4

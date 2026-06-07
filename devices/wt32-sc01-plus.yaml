@@ -1,0 +1,93 @@
+# PixGate per-board base — WT32-SC01 Plus (ESP32-S3, 320x480, ST7796 + FT6336).
+#
+# Include this from a device YAML via `packages:` and add your `wifi:` secrets. All
+# per-board quirks (rotation, color order, touch wiring) live here, never in the engine
+# (DESIGN.md §17). PixGate rides whatever LVGL display this sets up (§4).
+
+substitutions:
+  name: pixgate-wt32-sc01-plus
+  friendly_name: PixGate WT32-SC01 Plus
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+logger:
+api:
+ota:
+  - platform: esphome
+
+wifi:
+  ap:
+    ssid: ${friendly_name} Setup
+captive_portal:
+improv_serial:
+
+web_server:
+  version: 3
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+    components: [pixgate]
+
+spi:
+  type: octal
+  clk_pin: GPIO47
+  data_pins:
+    - 9
+    - ignore_strapping_warning: true
+      number: 46
+    - ignore_strapping_warning: true
+      number: 3
+    - 8
+    - 18
+    - 17
+    - 16
+    - 15
+    -
+# Display (3.5" 480x320 ST7796 panel on 8080 parallel bus)
+display:
+  - platform: mipi_spi
+    model: WT32-SC01-PLUS
+    id: my_display
+    # GPIO0 is the panel's data/command pin per the WT32-SC01-PLUS model preset.
+    # It's a strapping pin, but the board ties it to the display; override the
+    # preset so we can suppress the strapping warning.
+    dc_pin:
+      number: 0
+      ignore_strapping_warning: true
+
+# Backlight on GPIO45.
+output:
+  - platform: ledc
+    pin: GPIO45
+    id: backlight_output
+light:
+  - platform: monochromatic
+    output: backlight_output
+    name: Backlight
+    restore_mode: ALWAYS_ON
+
+i2c:
+  sda: GPIO6
+  scl: GPIO5
+
+touchscreen:
+  - platform: ft63x6
+    id: main_touch
+    interrupt_pin: GPIO7
+
+lvgl:
+
+pixgate:

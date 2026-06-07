@@ -68,3 +68,10 @@ vcpkg_installed/
 Testing/
 .cache/
 .idea/
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
