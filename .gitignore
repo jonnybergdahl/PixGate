@@ -77,3 +77,8 @@ __pycache__/
 *.pyc
 
 secrets.yaml
+
+# Local upload helper (may contain device-specific addresses)
+upload.sh
+
+.claude/

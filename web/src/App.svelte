@@ -1,8 +1,10 @@
 <script>
   import { getDevice, getRegistry, getConfig, getIcons, putConfig, deviceHost } from './lib/api.js';
+  import { shouldPromptHa, markHaPrompted } from './lib/ha.js';
   import { newEntry, deepClone } from './lib/model.js';
   import Zone from './lib/components/Zone.svelte';
   import WidgetEditor from './lib/components/WidgetEditor.svelte';
+  import Settings from './lib/components/Settings.svelte';
 
   let loading = $state(true);
   let loadError = $state('');
@@ -17,6 +19,19 @@
   let saving = $state(false);
   let saveMsg = $state(null); // { ok, text }
   let editor = $state(null); // { registryEntry, entry, isNew, target }
+
+  let showSettings = $state(false);
+  let settingsFirstRun = $state(false);
+
+  function openSettings() {
+    settingsFirstRun = false;
+    showSettings = true;
+  }
+
+  function closeSettings() {
+    showSettings = false;
+    settingsFirstRun = false;
+  }
 
   let systemTypes = $derived(registry.filter((t) => !t.domains || t.domains.length === 0));
   let entityTypes = $derived(registry.filter((t) => t.domains && t.domains.length > 0));
@@ -104,6 +119,13 @@
   }
 
   loadAll();
+
+  // First visit with no HA credentials: prompt for them once.
+  if (shouldPromptHa()) {
+    settingsFirstRun = true;
+    showSettings = true;
+    markHaPrompted();
+  }
 </script>
 
 <div class="app">
@@ -122,6 +144,7 @@
       <button class="primary" onclick={save} disabled={saving || !config}>
         {saving ? 'Saving…' : 'Save & apply'}
       </button>
+      <button class="cog" title="Settings" aria-label="Settings" onclick={openSettings}>⚙</button>
     </div>
   </div>
 
@@ -170,4 +193,8 @@
     onsave={onEditorSave}
     oncancel={() => (editor = null)}
   />
+{/if}
+
+{#if showSettings}
+  <Settings firstRun={settingsFirstRun} onclose={closeSettings} />
 {/if}

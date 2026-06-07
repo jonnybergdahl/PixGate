@@ -8,6 +8,7 @@
 
 const URL_KEY = 'pixgate.haUrl';
 const TOKEN_KEY = 'pixgate.haToken';
+const PROMPTED_KEY = 'pixgate.haPrompted';
 
 export function loadHaCreds() {
   return {
@@ -24,6 +25,22 @@ export function saveHaCreds(url, token) {
 export function clearHaCreds() {
   localStorage.removeItem(URL_KEY);
   localStorage.removeItem(TOKEN_KEY);
+}
+
+// True once both a URL and token are stored.
+export function haConfigured() {
+  const { url, token } = loadHaCreds();
+  return Boolean(url && token);
+}
+
+// First-run prompt: show the settings dialog once if HA isn't configured yet and we haven't
+// already asked. markHaPrompted() records that we've shown it so we don't nag on every visit.
+export function shouldPromptHa() {
+  return !haConfigured() && localStorage.getItem(PROMPTED_KEY) !== '1';
+}
+
+export function markHaPrompted() {
+  localStorage.setItem(PROMPTED_KEY, '1');
 }
 
 // Fetch all entity states from HA. Returns [{ entity_id, friendly_name, domain, state }].

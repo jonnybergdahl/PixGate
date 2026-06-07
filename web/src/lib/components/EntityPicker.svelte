@@ -1,12 +1,10 @@
 <script>
-  import { loadHaCreds, saveHaCreds, fetchEntities, filterByDomains } from '../ha.js';
+  import { loadHaCreds, haConfigured, fetchEntities, filterByDomains } from '../ha.js';
 
   // value: current entity_id string; domains: allowed HA domains for this widget type.
+  // Home Assistant credentials are managed globally in Settings (the cog), not here.
   let { value = '', domains = [], onchange } = $props();
 
-  const creds = loadHaCreds();
-  let haUrl = $state(creds.url);
-  let haToken = $state(creds.token);
   let expanded = $state(false);
   let loading = $state(false);
   let error = $state('');
@@ -25,9 +23,7 @@
     loading = true;
     error = '';
     try {
-      saveHaCreds(haUrl, haToken);
-      entities = await fetchEntities({ url: haUrl, token: haToken });
-      expanded = true;
+      entities = await fetchEntities(loadHaCreds());
     } catch (e) {
       error = e.message;
     } finally {
@@ -54,38 +50,41 @@
 
 {#if expanded}
   <div class="panel" style="margin-top:0.5rem">
-    <div class="grid2">
-      <input type="text" placeholder="Home Assistant URL" bind:value={haUrl} />
-      <input type="password" placeholder="Long-lived token" bind:value={haToken} />
-    </div>
-    <div class="row" style="margin-top:0.5rem">
-      <button type="button" onclick={load} disabled={loading}>
-        {loading ? 'Loading…' : 'Load entities'}
-      </button>
-      <span class="muted">{domains.length ? `domains: ${domains.join(', ')}` : 'all domains'}</span>
-    </div>
-
-    {#if error}
-      <p class="error-box" style="margin-top:0.5rem">{error}</p>
-    {/if}
-
-    {#if entities.length}
-      <input
-        type="text"
-        placeholder="Filter…"
-        bind:value={filter}
-        style="margin-top:0.5rem"
-      />
-      <div class="entity-list" style="margin-top:0.5rem">
-        {#each filtered as e (e.entity_id)}
-          <button type="button" onclick={() => pick(e.entity_id)}>
-            <strong>{e.friendly_name}</strong>
-            <span class="muted"> — {e.entity_id}</span>
-          </button>
-        {:else}
-          <div class="empty">No matching entities.</div>
-        {/each}
+    {#if !haConfigured()}
+      <p class="muted">
+        Set your Home Assistant URL and token in Settings (the ⚙ in the top-right) to browse
+        entities here.
+      </p>
+    {:else}
+      <div class="row">
+        <button type="button" onclick={load} disabled={loading}>
+          {loading ? 'Loading…' : 'Load entities'}
+        </button>
+        <span class="muted">{domains.length ? `domains: ${domains.join(', ')}` : 'all domains'}</span>
       </div>
+
+      {#if error}
+        <p class="error-box" style="margin-top:0.5rem">{error}</p>
+      {/if}
+
+      {#if entities.length}
+        <input
+          type="text"
+          placeholder="Filter…"
+          bind:value={filter}
+          style="margin-top:0.5rem"
+        />
+        <div class="entity-list" style="margin-top:0.5rem">
+          {#each filtered as e (e.entity_id)}
+            <button type="button" onclick={() => pick(e.entity_id)}>
+              <strong>{e.friendly_name}</strong>
+              <span class="muted"> — {e.entity_id}</span>
+            </button>
+          {:else}
+            <div class="empty">No matching entities.</div>
+          {/each}
+        </div>
+      {/if}
     {/if}
   </div>
 {/if}

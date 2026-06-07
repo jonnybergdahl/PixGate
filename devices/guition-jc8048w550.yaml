@@ -23,6 +23,10 @@ psram:
   speed: 80MHz
 
 logger:
+  # GPIO19/20 are this board's touch-I2C pins, which are also the ESP32-S3 native USB D-/D+ lines.
+  # Route the console to UART0 (the onboard USB-UART) so logs are visible and the USB-Serial-JTAG
+  # peripheral doesn't fight the I2C bus.
+  hardware_uart: UART0
 api:
 ota:
   - platform: esphome
