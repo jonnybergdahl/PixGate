@@ -1,0 +1,105 @@
+# PixGate per-board base — Sunton ESP32-8048S070C (ESP32-S3, 7" 800x480 RGB panel + GT911 touch).
+#
+# Same hardware class as the Guition JC8048W550: an 800x480 RGB (DPI) panel driven via the
+# mipi_rgb platform (model: RPI — a pure DPI panel with no SPI control bus or init sequence).
+# Pin map + panel timing follow the published Sunton 8048S070 wiring (EK9716/EK73002 driver).
+# Per-board quirks stay here, never in the engine (DESIGN.md §17).
+#
+# UNVERIFIED ON HARDWARE: the RGB color order, PCLK frequency/polarity, and panel porches are
+# the commonly-published values for this board. If the image is garbled, blank, or red/blue are
+# swapped, tune pclk_frequency/pclk_inverted, the porches, or color_order (see notes below).
+
+substitutions:
+  name: pixgate-8048s070c
+  friendly_name: PixGate ESP32-8048S070C
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+logger:
+  # GPIO19/20 are this board's touch-I2C pins, which are also the ESP32-S3 native USB D-/D+ lines.
+  # Route the console to UART0 (the onboard USB-UART) so logs are visible and the USB-Serial-JTAG
+  # peripheral doesn't fight the I2C bus.
+  hardware_uart: UART0
+api:
+ota:
+  - platform: esphome
+
+wifi:
+  ap:
+    ssid: ${friendly_name} Setup
+captive_portal:
+improv_serial:
+
+# No web_server: dashboard — pixgate auto-loads web_server_base and serves its own GUI at /.
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+    components: [pixgate]
+
+# --- Hardware: 7" 800x480 RGB (DPI) panel -------------------------------------------------
+display:
+  - platform: mipi_rgb
+    model: RPI
+    id: main_display
+    dimensions:
+      width: 800
+      height: 480
+    de_pin: GPIO41
+    hsync_pin: GPIO39
+    vsync_pin: GPIO40
+    pclk_pin: GPIO42
+    # 16-bit RGB565 data pins (per the published Sunton 8048S070 wiring).
+    # Color-order note: mipi_rgb orders these [B,G,R] internally. If red/blue come out swapped on
+    # the panel, either set `color_order: BGR` here or swap the `red:` and `blue:` arrays.
+    data_pins:
+      red: [GPIO14, GPIO21, GPIO47, GPIO48, GPIO45]
+      green: [GPIO9, GPIO46, GPIO3, GPIO8, GPIO16, GPIO1]
+      blue: [GPIO15, GPIO7, GPIO6, GPIO5, GPIO4]
+    # Panel timing (EK9716 7" datasheet values: PCLK active-neg, ~16MHz).
+    pclk_frequency: 16MHz
+    pclk_inverted: true
+    hsync_pulse_width: 48
+    hsync_back_porch: 13
+    hsync_front_porch: 40
+    vsync_pulse_width: 31
+    vsync_back_porch: 13
+    vsync_front_porch: 1
+
+# Backlight on GPIO2.
+output:
+  - platform: ledc
+    pin: GPIO2
+    frequency: 100Hz
+    id: backlight_output
+light:
+  - platform: monochromatic
+    output: backlight_output
+    name: Backlight
+    restore_mode: ALWAYS_ON
+
+i2c:
+  sda: GPIO19
+  scl: GPIO20
+
+# GT911 capacitive touch on the shared I2C bus. No reset/IRQ wired here; the GT911 works on I2C
+# alone. If touch fails to init, the board may route TOUCH_RST/INT — add reset_pin/interrupt_pin.
+touchscreen:
+  - platform: gt911
+    id: main_touch
+
+lvgl:
+
+pixgate:
