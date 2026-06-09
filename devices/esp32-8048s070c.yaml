@@ -5,9 +5,8 @@
 # Pin map + panel timing follow the published Sunton 8048S070 wiring (EK9716/EK73002 driver).
 # Per-board quirks stay here, never in the engine (DESIGN.md §17).
 #
-# UNVERIFIED ON HARDWARE: the RGB color order, PCLK frequency/polarity, and panel porches are
-# the commonly-published values for this board. If the image is garbled, blank, or red/blue are
-# swapped, tune pclk_frequency/pclk_inverted, the porches, or color_order (see notes below).
+# Verified on hardware. If you ever fork this for a panel variant and the image is garbled, blank,
+# or red/blue are swapped, tune pclk_frequency/pclk_inverted, the porches, or color_order (notes below).
 
 substitutions:
   name: pixgate-8048s070c

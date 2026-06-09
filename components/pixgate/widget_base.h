@@ -63,7 +63,9 @@ inline void style_as_badge(lv_obj_t *obj) {
 // for simple widgets; complex widgets open a full-screen detail page on tap (§10).
 inline lv_obj_t *make_tile(lv_obj_t *parent) {
   lv_obj_t *tile = lv_obj_create(parent);
-  lv_obj_set_size(tile, LV_PCT(100), 90);
+  // No explicit size: the grid sizes each tile to its computed square-ish cell via
+  // GridLayout::place(). A placeholder keeps the tile non-zero if ever used outside the grid.
+  lv_obj_set_size(tile, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
   lv_obj_set_style_radius(tile, 10, 0);
   lv_obj_set_style_pad_all(tile, 8, 0);
   style_tile(tile);

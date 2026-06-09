@@ -106,23 +106,31 @@ void PixGate::build_root_() {
                         LV_FLEX_ALIGN_CENTER);
   lv_obj_clear_flag(this->header_, LV_OBJ_FLAG_SCROLLABLE);
 
-  // Badge row: collapses to zero height when empty.
+  // Badge row: collapses to zero height when empty, grows with its content (wraps to more rows
+  // as badges are added). Badges are centered in the row.
   this->badges_ = lv_obj_create(this->root_);
   lv_obj_set_width(this->badges_, LV_PCT(100));
   lv_obj_set_height(this->badges_, LV_SIZE_CONTENT);
-  lv_obj_set_style_pad_all(this->badges_, 2, 0);
+  lv_obj_set_style_pad_all(this->badges_, 6, 0);
+  lv_obj_set_style_pad_row(this->badges_, 6, 0);
+  lv_obj_set_style_pad_column(this->badges_, 8, 0);
   lv_obj_set_style_border_width(this->badges_, 0, 0);
   lv_obj_set_style_bg_opa(this->badges_, LV_OPA_TRANSP, 0);
   lv_obj_set_flex_flow(this->badges_, LV_FLEX_FLOW_ROW_WRAP);
+  lv_obj_set_flex_align(this->badges_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
   lv_obj_clear_flag(this->badges_, LV_OBJ_FLAG_SCROLLABLE);
 
-  // Main window: flex-grow, holds the responsive grid of entity widgets.
+  // Main window: flex-grow, holds the responsive grid of entity widgets. Never scrolls — the
+  // grid sizes tiles so a screenful fits, and overflow is handled by a (future) sub-page widget
+  // that opens another page rather than by scrolling this one.
   this->main_ = lv_obj_create(this->root_);
   lv_obj_set_width(this->main_, LV_PCT(100));
   lv_obj_set_flex_grow(this->main_, 1);
   lv_obj_set_style_pad_all(this->main_, 8, 0);
   lv_obj_set_style_border_width(this->main_, 0, 0);
   lv_obj_set_style_bg_opa(this->main_, LV_OPA_TRANSP, 0);
+  lv_obj_clear_flag(this->main_, LV_OBJ_FLAG_SCROLLABLE);
 }
 
 void PixGate::teardown_() {
@@ -149,7 +157,7 @@ void PixGate::attach_widget_(Widget *w) {
 }
 
 void PixGate::build_zone_widgets_(lv_obj_t *parent, const void *widgets_array, bool is_grid,
-                                  GridLayout *grid, bool badge) {
+                                  GridLayout *grid) {
   const JsonArrayConst &arr = *static_cast<const JsonArrayConst *>(widgets_array);
   for (JsonObjectConst entry : arr) {
     const char *type = entry["type"] | "";
@@ -170,24 +178,12 @@ void PixGate::build_zone_widgets_(lv_obj_t *parent, const void *widgets_array, b
     raw->set_entity_id(cfg["entity_id"] | "");
     raw->build(parent, cfg);
 
-    // Badge row: restyle the widget's root into a compact pill (overrides the tile look).
-    if (badge) {
-      lv_obj_t *child = lv_obj_get_child(parent, lv_obj_get_child_cnt(parent) - 1);
-      if (child != nullptr)
-        style_as_badge(child);
-    }
-
-    // Position entity widgets in the grid; system widgets just flow in their zone.
+    // Size entity widgets to a grid cell; system widgets just flow in their zone. The cell/span
+    // fields in the config are not yet honored — every widget occupies one square-ish cell (v1).
     if (is_grid && grid != nullptr) {
-      JsonObjectConst cell = entry["cell"].as<JsonObjectConst>();
-      GridCell gc;
-      gc.col = cell["col"] | 0;
-      gc.row = cell["row"] | 0;
-      gc.col_span = cell["col_span"] | 1;
-      gc.row_span = cell["row_span"] | 1;
       lv_obj_t *child = lv_obj_get_child(parent, lv_obj_get_child_cnt(parent) - 1);
       if (child != nullptr)
-        grid->place(child, gc);
+        grid->place(child);
     }
 
     LiveWidget lw;
@@ -285,18 +281,22 @@ void PixGate::rebuild_() {
     this->build_zone_widgets_(this->header_, &arr, false, nullptr);
   }
 
-  // Badge row system widgets (rendered as compact pills).
+  // Badge row widgets (each badge styles itself as a compact pill).
   if (doc["badges"]["widgets"].is<JsonArrayConst>()) {
     JsonArrayConst arr = doc["badges"]["widgets"].as<JsonArrayConst>();
-    this->build_zone_widgets_(this->badges_, &arr, false, nullptr, true);
+    this->build_zone_widgets_(this->badges_, &arr, false, nullptr);
   }
 
   // Main window: render the first page (multi-page nav can land later; schema supports it).
+  // The column/row counts are derived from the main window's real pixel box and a minimum
+  // touch-target edge, not from config — so tiles stay finger-sized and roughly square on every
+  // board and after rotation. Update the layout first so the measured box reflects the actual
+  // header/badge heights and the current display rotation.
   JsonArrayConst pages = doc["pages"].as<JsonArrayConst>();
   if (!pages.isNull() && pages.size() > 0) {
     JsonObjectConst page = pages[0].as<JsonObjectConst>();
-    int columns = page["columns"] | 4;
-    this->grid_.setup(this->main_, columns);
+    lv_obj_update_layout(this->root_);
+    this->grid_.configure(this->main_);
     if (page["widgets"].is<JsonArrayConst>()) {
       JsonArrayConst arr = page["widgets"].as<JsonArrayConst>();
       this->build_zone_widgets_(this->main_, &arr, true, &this->grid_);
