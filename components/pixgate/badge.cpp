@@ -111,9 +111,8 @@ class BadgeWidget : public TileWidget {
       lv_label_set_text(this->value_, "—");
     }
 
-    // Pill frame + theme colours + centered row layout, then our colour scheme on top.
-    style_as_badge(this->root_);
-    this->apply_colors_(false);
+    // The engine frames every badge-row widget identically (style_as_badge) after build(); the
+    // badge's own colour is layered on top via on_state(), which the engine seeds right after.
   }
 
   void on_state(const EntityState &s) override {

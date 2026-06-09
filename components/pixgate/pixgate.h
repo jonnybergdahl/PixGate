@@ -90,9 +90,10 @@ class PixGate : public Component
   void apply_display_settings_(const void *display_obj);
 
   // Build the widgets listed in a zone's "widgets" JSON array into `parent`. Entity widgets in
-  // the main window (is_grid) are sized to a grid cell; header/badge widgets just flow.
+  // the main window (is_grid) are sized to a grid cell; header widgets flow; badge-row widgets
+  // (badge=true) are all given the same compact pill frame so the row renders uniformly.
   void build_zone_widgets_(lv_obj_t *parent, const void *widgets_array, bool is_grid,
-                           GridLayout *grid);
+                           GridLayout *grid, bool badge = false);
 
   // Attach a freshly built widget to the binding service for its entity (seeds it too).
   void attach_widget_(Widget *w);

@@ -157,7 +157,7 @@ void PixGate::attach_widget_(Widget *w) {
 }
 
 void PixGate::build_zone_widgets_(lv_obj_t *parent, const void *widgets_array, bool is_grid,
-                                  GridLayout *grid) {
+                                  GridLayout *grid, bool badge) {
   const JsonArrayConst &arr = *static_cast<const JsonArrayConst *>(widgets_array);
   for (JsonObjectConst entry : arr) {
     const char *type = entry["type"] | "";
@@ -178,13 +178,17 @@ void PixGate::build_zone_widgets_(lv_obj_t *parent, const void *widgets_array, b
     raw->set_entity_id(cfg["entity_id"] | "");
     raw->build(parent, cfg);
 
+    lv_obj_t *child = lv_obj_get_child(parent, lv_obj_get_child_cnt(parent) - 1);
+
+    // Badge row: give every widget the same compact pill frame so the row renders uniformly.
+    // Widgets in the badge row do not style their own frame — the engine owns it here.
+    if (badge && child != nullptr)
+      style_as_badge(child);
+
     // Size entity widgets to a grid cell; system widgets just flow in their zone. The cell/span
     // fields in the config are not yet honored — every widget occupies one square-ish cell (v1).
-    if (is_grid && grid != nullptr) {
-      lv_obj_t *child = lv_obj_get_child(parent, lv_obj_get_child_cnt(parent) - 1);
-      if (child != nullptr)
-        grid->place(child);
-    }
+    if (is_grid && grid != nullptr && child != nullptr)
+      grid->place(child);
 
     LiveWidget lw;
     lw.widget = std::move(widget);
@@ -197,6 +201,12 @@ void PixGate::build_zone_widgets_(lv_obj_t *parent, const void *widgets_array, b
       this->widgets_.back().handle = this->binding_.subscribe(
           stored->entity_id(), [stored](const EntityState &s) { stored->on_state(s); });
     }
+
+    // Badges layer their own colour (fixed / state-driven) on top of the shared frame. Seed it
+    // once here so the colour is correct even before the first state arrives (e.g. fixed colour),
+    // and always after the frame above so it is not overwritten.
+    if (badge)
+      stored->on_state(this->binding_.get_cached(stored->entity_id()));
   }
 }
 
@@ -281,10 +291,10 @@ void PixGate::rebuild_() {
     this->build_zone_widgets_(this->header_, &arr, false, nullptr);
   }
 
-  // Badge row widgets (each badge styles itself as a compact pill).
+  // Badge row widgets: the engine frames each as the same compact pill (badge=true).
   if (doc["badges"]["widgets"].is<JsonArrayConst>()) {
     JsonArrayConst arr = doc["badges"]["widgets"].as<JsonArrayConst>();
-    this->build_zone_widgets_(this->badges_, &arr, false, nullptr);
+    this->build_zone_widgets_(this->badges_, &arr, false, nullptr, true);
   }
 
   // Main window: render the first page (multi-page nav can land later; schema supports it).
