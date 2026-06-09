@@ -1,17 +1,25 @@
 <script>
   import { untrack } from 'svelte';
   import Field from './Field.svelte';
-  import { deepClone, isSystemType } from '../model.js';
+  import { deepClone } from '../model.js';
 
   // registryEntry: the type's registry info ({type, domains, schema}); entry: the widget being
-  // added/edited; icons: available icon names; onsave(entry)/oncancel() callbacks. The component
-  // is mounted fresh each time the editor opens, so snapshotting the props once is intentional.
-  let { registryEntry, entry, icons = [], onsave, oncancel } = $props();
+  // added/edited; onPage: whether this widget lives on the page grid (and therefore has a cell);
+  // icons: available icon names; onsave(entry)/oncancel() callbacks. The component is mounted
+  // fresh each time the editor opens, so snapshotting the props once is intentional.
+  let { registryEntry, entry, onPage = false, icons = [], onsave, oncancel } = $props();
 
-  // Work on a clone so Cancel discards cleanly.
-  let draft = $state(untrack(() => deepClone(entry)));
+  // Work on a clone so Cancel discards cleanly. Grid placement is a property of the page grid,
+  // not of the widget type — a zone widget that happens to bind an entity (clock, badge) has no
+  // cell, so only seed/show one for page widgets.
+  let draft = $state(
+    untrack(() => {
+      const d = deepClone(entry);
+      if (onPage && !d.cell) d.cell = { col: 0, row: 0, col_span: 1, row_span: 1 };
+      return d;
+    })
+  );
   let error = $state('');
-  const isEntity = untrack(() => !isSystemType(registryEntry));
 
   function onKeydown(e) {
     if (e.key === 'Escape') oncancel?.();
@@ -57,7 +65,7 @@
       />
     {/each}
 
-    {#if isEntity}
+    {#if onPage && draft.cell}
       <fieldset style="border:1px solid var(--border);border-radius:8px;padding:0.75rem">
         <legend class="muted">Grid placement</legend>
         <div class="grid2">

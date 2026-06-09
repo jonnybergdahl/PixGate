@@ -202,6 +202,7 @@
   <WidgetEditor
     registryEntry={editor.registryEntry}
     entry={editor.entry}
+    onPage={editor.target.tab === 'page'}
     {icons}
     onsave={onEditorSave}
     oncancel={() => (editor = null)}

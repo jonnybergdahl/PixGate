@@ -14,8 +14,11 @@ class ClockWidget : public TileWidget {
  public:
   const char *type_id() const override { return "clock"; }
 
-  // Bound to a HA sensor (defaults to the Time & Date integration's sensor.time).
-  std::vector<std::string> supported_domains() const override { return {"sensor"}; }
+  // Empty domains: like the other header/badge system widgets, the clock reports no domains so
+  // the GUI routes it to the header/badge zones (where widgets have no grid cell) rather than the
+  // page grid. It still binds to a HA sensor — defaulting to the Time & Date sensor.time — via its
+  // cfg entity_id; the empty list just means the entity picker isn't domain-filtered.
+  std::vector<std::string> supported_domains() const override { return {}; }
 
   const ConfigSchema &schema() const override {
     static const ConfigSchema s = {
